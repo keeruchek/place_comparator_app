@@ -1,7 +1,7 @@
 import streamlit as st
 
 # ---- UI Header ----
-st.title("📍 Compare Living in U.S. Cities")
+st.title("📍Property Finder")
 st.subheader("Choose one or two places to compare housing, safety, commute, parks, and more.")
 
 # ---- Option Selector ----
