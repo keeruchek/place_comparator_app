@@ -2,12 +2,12 @@ import pandas as pd
 import streamlit as st
 import requests
 
-# Geocoding Function using OpenCage
+# Geocoding function using OpenCage API
 def geocode_location(place_name):
     url = "https://api.opencagedata.com/geocode/v1/json"
     params = {
         'q': place_name,
-        'key': '8e8875148f2f42e791dd420015550342',
+        'key': '8e8875148f2f42e791dd420015550342',  # Replace with your own key
         'limit': 1,
     }
     try:
@@ -16,19 +16,15 @@ def geocode_location(place_name):
         if data['results']:
             return data['results'][0]['geometry']['lat'], data['results'][0]['geometry']['lng']
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Geocoding error: {e}")
     return None, None
 
-# Function to Get Nearby Places using Overpass API
-def get_nearby_places(lat, lon, key, value, radius=1500):
+# Function to get nearby places using Overpass API
+def get_nearby_places(lat, lon, filter_query, label, radius=1500, max_results=5):
     query = f"""
     [out:json];
-    (
-      node[{key}="{value}"](around:{radius},{lat},{lon});
-      way[{key}="{value}"](around:{radius},{lat},{lon});
-      relation[{key}="{value}"](around:{radius},{lat},{lon});
-    );
-    out center;
+    node[{filter_query}](around:{radius},{lat},{lon});
+    out;
     """
     url = "http://overpass-api.de/api/interpreter"
     try:
@@ -37,12 +33,13 @@ def get_nearby_places(lat, lon, key, value, radius=1500):
         data = response.json()
         places = []
         for element in data.get('elements', []):
-            tags = element.get('tags', {})
-            name = tags.get('name', 'Unnamed')
-            places.append(name)
-        return places[:5] if places else ["No results found"]
-    except:
-        return ["Error retrieving data"]
+            name = element.get('tags', {}).get('name', 'Unnamed')
+            lat = element.get('lat')
+            lon = element.get('lon')
+            places.append(f"{name} ({lat:.4f}, {lon:.4f})")
+        return places[:max_results] if places else [f"No nearby {label} found."]
+    except Exception as e:
+        return [f"Error retrieving {label}: {e}"]
 
 # Streamlit UI
 st.set_page_config(page_title="Compare Places", layout="centered")
