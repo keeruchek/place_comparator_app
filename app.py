@@ -1,157 +1,109 @@
-import pandas as pd
 import streamlit as st
 import requests
-import random
+import folium
+from streamlit_folium import st_folium
 
-# 🗺️ Geocoding using OpenCage Geocoder
+# Function to get lat/lon using Nominatim
 def geocode_location(place_name):
-    url = "https://api.opencagedata.com/geocode/v1/json"
-    params = {'q': place_name, 'key': '8e8875148f2f42e791dd420015550342', 'limit': 1}
-    try:
-        resp = requests.get(url, params=params, timeout=10).json()
-        if resp.get('results'):
-            geo = resp['results'][0]['geometry']
-            return geo['lat'], geo['lng']
-    except:
-        pass
-    return None, None
-
-# 🔍 Nearby places via Overpass API
-def get_all_metrics(place, lat, lon):
-    parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
-    gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
-    sch = get_nearby_places(lat, lon, '(amenity=school)|(amenity=college)', 'schools/colleges')
-    shop = get_nearby_places(lat, lon, '(shop=supermarket)|(shop=mall)|(shop=convenience)', 'shopping/grocery')
-    hos = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
-    parking_ct = parking_score(lat, lon)
-    # ... rest remains unchanged ...
-    return {
-      # ... previous metrics ...
-      "Nearby Schools/Colleges": sch,
-      "Nearby Shopping/Grocery": shop,
-      "Nearby Hospitals": hos,
-      # ... rest unchanged ...
-    }
-
-    try:
-        data = requests.get("http://overpass-api.de/api/interpreter", params={'data': query}, timeout=15).json()
-        places = []
-        for el in data.get('elements', []):
-            tags = el.get('tags', {})
-            name = tags.get('name', 'Unnamed')
-            lat0 = el.get('lat') or el.get('center', {}).get('lat')
-            lon0 = el.get('lon') or el.get('center', {}).get('lon')
-            places.append(f"{name} ({lat0:.4f}, {lon0:.4f})")
-        return places[:5] if places else [f"No {label} found"]
-    except Exception as e:
-        return [f"Error {label}: {e}"]
-
-# Dummy helpers
-def avg_housing_cost(place):
-    # Simulated values; integrate real data source like RentCast
-    return {'studio': '$1,200', '1 bed': '$1,800', '2 bed': '$2,400'}
-
-def crime_rate(place):
-    return random.choice(['Low', 'Medium', 'High'])
-
-def commute_info(place):
-    return random.randint(50, 100), random.choice(['Bus', 'Train', 'Tram', 'Bus & Train'])
-
-def walkability(place):
-    return random.randint(40, 95)
-
-def diversity_index(place):
-    return round(random.uniform(0.3, 0.9), 2)
-
-def pet_score(green_count, walk_score):
-    return round((green_count * 10 + walk_score) / 2)
-
-def parking_score(lat, lon):
-    # Count nearby parking amenities
-    parks = get_nearby_places(lat, lon, 'amenity=parking', 'parking')
-    return len(parks)
-
-def get_all_metrics(place, lat, lon):
-    parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
-    gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
-    schools = get_nearby_places(lat, lon, 'amenity=school', 'schools')
-    shopping = get_nearby_places(lat, lon, 'shop', 'shops')
-    hospitals = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
-    parking_ct = parking_score(lat, lon)
-    
-    housing = avg_housing_cost(place)
-    crime = crime_rate(place)
-    commute_sc, commute_type = commute_info(place)
-    walk_sc = walkability(place)
-    div_ix = diversity_index(place)
-    pet_sc = pet_score(len(parks), walk_sc)
-    
-    return {
-        "Housing (Studio)": housing['studio'],
-        "Housing (1 bed)": housing['1 bed'],
-        "Housing (2 bed)": housing['2 bed'],
-        "Crime Rate": crime,
-        "Schools Nearby": schools,
-        "Commute Score": commute_sc,
-        "Transit Type": commute_type,
-        "Green Space (parks count)": len(parks),
-        "Walkability Score": walk_sc,
-        "Gyms Nearby": gyms,
-        "Shopping Nearby": shopping,
-        "Hospitals Nearby": hospitals,
-        "Parking Score (count)": parking_ct,
-        "Diversity Index": div_ix,
-        "PET Score": pet_sc
-    }
-
-# 🧭 Streamlit UI Setup
-st.set_page_config(page_title="Neighborhood Insights", layout="centered")
-st.title("🏡 Neighborhood Insights & Comparison Tool")
-
-mode = st.radio("Mode:", ("Compare Two Places", "Single Place"))
-place1 = st.text_input("Place 1 (City, State)", "Cambridge, MA")
-place2 = st.text_input("Place 2 (City, State)", "Somerville, MA") if mode == "Compare Two Places" else None
-
-if st.button("Show Insights"):
-    lat1, lon1 = geocode_location(place1)
-    lat2, lon2 = (None, None)
-    if mode == "Compare Two Places":
-        lat2, lon2 = geocode_location(place2)
-
-    if lat1 is None:
-        st.error(f"Couldn't locate {place1}")
-        st.stop()
-    if mode == "Compare Two Places" and lat2 is None:
-        st.error(f"Couldn't locate {place2}")
-        st.stop()
-
-    # Show map
-    locs = [{'lat': lat1,'lon':lon1,'place':place1}]
-    if mode == "Compare Two Places":
-        locs.append({'lat':lat2,'lon':lon2,'place':place2})
-    st.map(pd.DataFrame(locs))
-
-    data1 = get_all_metrics(place1, lat1, lon1)
-    data2 = get_all_metrics(place2, lat2, lon2) if mode=="Compare Two Places" else None
-
-    if mode=="Compare Two Places":
-        col1, col2 = st.columns(2)
-        for col, place, data in [(col1, place1, data1), (col2, place2, data2)]:
-            with col:
-                st.subheader(place)
-                for k,v in data.items():
-                    if isinstance(v, list):
-                        st.markdown(f"**{k}:**")
-                        for item in v:
-                            st.markdown(f"- {item}")
-                    else:
-                        st.markdown(f"**{k}:** {v}")
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": place_name, "format": "json"}
+    response = requests.get(url, params=params).json()
+    if response:
+        return float(response[0]['lat']), float(response[0]['lon'])
     else:
-        st.subheader(place1)
-        for k,v in data1.items():
-            if isinstance(v, list):
-                st.markdown(f"**{k}:**")
-                for item in v:
-                    st.markdown(f"- {item}")
-            else:
-                st.markdown(f"**{k}:** {v}")
+        return None, None
+
+# Function to fetch Overpass data
+def get_nearby_places(lat, lon, key, value=None, radius=1000):
+    value_filter = f'["{key}"="{value}"]' if value else f'["{key}"]'
+    query = f"""
+    [out:json];
+    (
+      node{value_filter}(around:{radius},{lat},{lon});
+      way{value_filter}(around:{radius},{lat},{lon});
+      relation{value_filter}(around:{radius},{lat},{lon});
+    );
+    out center;
+    """
+    url = "http://overpass-api.de/api/interpreter"
+    response = requests.post(url, data=query)
+    data = response.json()
+    return len(data.get("elements", []))
+
+# Simulated data functions
+def get_avg_rent():
+    return {
+        "Studio": "$1200",
+        "1 Bed": "$1500",
+        "2 Bed": "$1800"
+    }
+
+def get_crime_rate():
+    return "Medium"
+
+def get_commute_score():
+    return {
+        "Score": 70,
+        "Transit Options": ["Bus", "Subway"]
+    }
+
+def get_diversity_index():
+    return 78
+
+def get_parking_score():
+    return "High"
+
+# Combined metric function
+def get_all_metrics(place_name, lat, lon):
+    rent = get_avg_rent()
+    crime = get_crime_rate()
+    commute = get_commute_score()
+    diversity = get_diversity_index()
+    parking = get_parking_score()
+
+    parks = get_nearby_places(lat, lon, 'leisure', 'park')
+    gyms = get_nearby_places(lat, lon, 'leisure', 'fitness_centre')
+    shopping = get_nearby_places(lat, lon, 'shop')  # any type of shop
+    hospitals = get_nearby_places(lat, lon, 'amenity', 'hospital')
+    schools = get_nearby_places(lat, lon, 'amenity', 'school')
+    colleges = get_nearby_places(lat, lon, 'amenity', 'college')
+
+    walkability = "High" if parks > 3 and gyms > 2 else "Medium"
+    green_score = "High" if parks > 5 else "Medium"
+    pet_score = "High" if green_score == "High" and walkability == "High" else "Medium"
+
+    return {
+        "Average Rent": rent,
+        "Crime Rate": crime,
+        "Commute Score": commute,
+        "Green Space Score": green_score,
+        "Walkability Score": walkability,
+        "Pet Score": pet_score,
+        "Gyms Nearby": gyms,
+        "Shopping Centres/Grocery Stores Nearby": shopping,
+        "Hospitals Nearby": hospitals,
+        "Schools/Colleges Nearby": schools + colleges,
+        "Diversity Index": diversity,
+        "Parking Score": parking
+    }
+
+# Streamlit UI
+st.set_page_config(page_title="Place Comparator", layout="wide")
+st.title("🏡 Place Comparator App")
+
+place1 = st.text_input("Enter location name:")
+
+if place1:
+    lat1, lon1 = geocode_location(place1)
+    if lat1 and lon1:
+        data1 = get_all_metrics(place1, lat1, lon1)
+
+        st.subheader(f"📍 {place1} Overview")
+        st.json(data1)
+
+        st.subheader("📌 Map")
+        m = folium.Map(location=[lat1, lon1], zoom_start=14)
+        folium.Marker([lat1, lon1], popup=place1).add_to(m)
+        st_folium(m, width=700, height=500)
+    else:
+        st.error("Couldn't locate the place. Try a more specific name.")
