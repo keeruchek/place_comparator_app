@@ -5,8 +5,13 @@ import requests
 # Geocoding Function using Nominatim 
 def geocode_location(place_name):
     url = "https://nominatim.openstreetmap.org/search"
-    params = {'q': place_name, 'format': 'json'}
-    headers = {'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'}
+    params = {
+        'q': place_name,
+        'format': 'json'
+    }
+    headers = {
+        'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'
+    }
     try:
         response = requests.get(url, params=params, headers=headers, timeout=10)
         response.raise_for_status()
@@ -25,13 +30,17 @@ def get_nearby_places(lat, lon, key, value, radius=1500):
     out;
     """
     url = "http://overpass-api.de/api/interpreter"
-    response = requests.get(url, params={'data': query})
-    data = response.json()
-    places = []
-    for element in data.get('elements', []):
-        name = element.get('tags', {}).get('name', 'Unnamed')
-        places.append(name)
-    return places[:5]  # Limit to 5 results for display
+    try:
+        response = requests.get(url, params={'data': query}, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        places = []
+        for element in data.get('elements', []):
+            name = element.get('tags', {}).get('name', 'Unnamed')
+            places.append(name)
+        return places[:5]  # Limit to 5 results
+    except:
+        return ["Error retrieving data"]
 
 # Streamlit UI 
 st.set_page_config(page_title="Compare Places", layout="centered")
@@ -45,10 +54,12 @@ if st.button("Compare"):
     lat1, lon1 = geocode_location(place1)
     lat2, lon2 = geocode_location(place2)
 
-    if not lat1 or not lon1 or not lat2 or not lon2:
-        st.error("Couldn't locate one or both places. Try more specific names.")
+    if lat1 is None or lon1 is None:
+        st.error(f"Couldn't locate **{place1}**. Try a more specific name.")
+    elif lat2 is None or lon2 is None:
+        st.error(f"Couldn't locate **{place2}**. Try a more specific name.")
     else:
-        # Display map
+        # Show location map
         locations = [
             {'lat': lat1, 'lon': lon1, 'place': place1},
             {'lat': lat2, 'lon': lon2, 'place': place2}
@@ -57,6 +68,7 @@ if st.button("Compare"):
         st.subheader("📍 Location Map")
         st.map(df_map)
 
+        # Side-by-side comparisons
         col1, col2 = st.columns(2)
 
         with col1:
