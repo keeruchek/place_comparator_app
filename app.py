@@ -95,8 +95,7 @@ def get_all_metrics(place, lat, lon):
 return {
     "Average Rent (2 bed)": housing['avg_rent_2bed'],
     "Average Sale Price (2 bed)": housing['avg_price_2bed'],
-   
-}
+   }   
     crime = crime_rate(place)
     commute_sc, commute_type = commute_info(place)
     walk_sc = walkability(place)
