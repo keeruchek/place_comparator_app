@@ -97,7 +97,6 @@ return {
     "Average Sale Price (2 bed)": housing['avg_price_2bed'],
    
 }
-
     crime = crime_rate(place)
     commute_sc, commute_type = commute_info(place)
     walk_sc = walkability(place)
