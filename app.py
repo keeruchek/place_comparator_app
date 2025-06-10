@@ -77,7 +77,8 @@ def get_all_metrics(place, lat, lon):
     housing = avg_housing_cost(place)
     crime = crime_rate(place)
     schools = get_nearby_places(lat, lon, 'amenity=school', 'schools') + get_nearby_places(lat, lon, 'amenity=college', 'colleges')
-    commute_sc, commute_type = commute_score(place)
+    commute_sc = commute_score(place)
+    commute_type = "Unknown"
     parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
     walk_sc = walkability_score(lat, lon)
     gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
