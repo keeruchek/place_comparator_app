@@ -42,8 +42,18 @@ def get_nearby_places(lat, lon, query, label, radius=2000):
 
 # Dummy helpers
 def avg_housing_cost(place):
-    # Simulated values; integrate real data source like RentCast
-    return {'studio': '$1,200', '1 bed': '$1,800', '2 bed': '$2,400'}
+    # Simulate fetching average rent and average home price for 2-bedroom in the area
+    # In practice, you could use APIs like Zillow (paid), Realtor.com, or a local real estate data provider
+    
+    # For demo, generate random reasonable values based on city size or zip (you can customize)
+    avg_rent_2bed = random.randint(1500, 3500)  # average monthly rent for 2-bedroom
+    avg_price_2bed = random.randint(250000, 750000)  # average price to buy a 2-bedroom house
+    
+    return {
+        'avg_rent_2bed': f"${avg_rent_2bed:,}",
+        'avg_price_2bed': f"${avg_price_2bed:,}"
+    }
+
 
 def crime_rate(place):
     return random.choice(['Low', 'Medium', 'High'])
@@ -82,6 +92,12 @@ def get_all_metrics(place, lat, lon):
     parking_ct = parking_score(lat, lon)
     
     housing = avg_housing_cost(place)
+return {
+    "Average Rent (2 bed)": housing['avg_rent_2bed'],
+    "Average Sale Price (2 bed)": housing['avg_price_2bed'],
+   
+}
+
     crime = crime_rate(place)
     commute_sc, commute_type = commute_info(place)
     walk_sc = walkability(place)
