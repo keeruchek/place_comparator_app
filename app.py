@@ -40,20 +40,15 @@ def get_nearby_places(lat, lon, query, label, radius=2000):
     except Exception as e:
         return [f"Error fetching {label}: {e}"]
 
-# Dummy helpers
+
 def avg_housing_cost(place):
-    # Simulate fetching average rent and average home price for 2-bedroom in the area
-    # In practice, you could use APIs like Zillow (paid), Realtor.com, or a local real estate data provider
-    
-    # For demo, generate random reasonable values based on city size or zip (you can customize)
-    avg_rent_2bed = random.randint(1500, 3500)  # average monthly rent for 2-bedroom
-    avg_price_2bed = random.randint(250000, 750000)  # average price to buy a 2-bedroom house
-    
+    # Simulate average rent and sale price for 2-bedroom
+    avg_rent_2bed = random.randint(1500, 3500)
+    avg_price_2bed = random.randint(250000, 750000)
     return {
         'avg_rent_2bed': f"${avg_rent_2bed:,}",
         'avg_price_2bed': f"${avg_price_2bed:,}"
     }
-
 
 def crime_rate(place):
     return random.choice(['Low', 'Medium', 'High'])
@@ -76,36 +71,22 @@ def parking_score(lat, lon):
     return len(parks)
 
 def get_all_metrics(place, lat, lon):
+    housing = avg_housing_cost(place)
+    crime = crime_rate(place)
+    schools = get_nearby_places(lat, lon, 'amenity=school', 'schools') + get_nearby_places(lat, lon, 'amenity=college', 'colleges')
+    commute_sc, commute_type = commute_score(place)
     parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
+    walk_sc = walkability_score(lat, lon)
     gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
-    
-    # Updated to fetch multiple relevant amenity/shop types and combine results
-    schools = get_nearby_places(lat, lon, 'amenity=school', 'schools') + \
-              get_nearby_places(lat, lon, 'amenity=college', 'colleges') + \
-              get_nearby_places(lat, lon, 'amenity=university', 'universities')
-
-    shopping = get_nearby_places(lat, lon, 'shop=supermarket', 'supermarkets') + \
-               get_nearby_places(lat, lon, 'shop=mall', 'malls') + \
-               get_nearby_places(lat, lon, 'shop=convenience', 'convenience stores')
-
+    shopping = get_nearby_places(lat, lon, 'shop', 'shopping')
     hospitals = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
     parking_ct = parking_score(lat, lon)
-    
-    housing = avg_housing_cost(place)
-return {
-    "Average Rent (2 bed)": housing['avg_rent_2bed'],
-    "Average Sale Price (2 bed)": housing['avg_price_2bed'],
-   }   
-    crime = crime_rate(place)
-    commute_sc, commute_type = commute_info(place)
-    walk_sc = walkability(place)
     div_ix = diversity_index(place)
-    pet_sc = pet_score(len(parks), walk_sc)
-    
+    pet_sc = pet_score(walk_sc, len(parks))
+
     return {
-        "Housing (Studio)": housing['studio'],
-        "Housing (1 bed)": housing['1 bed'],
-        "Housing (2 bed)": housing['2 bed'],
+        "Average Rent (2 bed)": housing['avg_rent_2bed'],
+        "Average Sale Price (2 bed)": housing['avg_price_2bed'],
         "Crime Rate": crime,
         "Schools Nearby": schools,
         "Commute Score": commute_sc,
