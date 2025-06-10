@@ -1,51 +1,62 @@
 import streamlit as st
+import requests
 
-# ---- UI Header ----
-st.title("📍Property Finder")
-st.subheader("Choose one or two places to compare housing, safety, commute, parks, and more.")
+# Geocoding Function using Nominatim 
+def geocode_location(location):
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": location, "format": "json"}
+    response = requests.get(url, params=params).json()
+    if not response:
+        return None, None
+    lat = float(response[0]["lat"])
+    lon = float(response[0]["lon"])
+    return lat, lon
 
-# ---- Option Selector ----
-option = st.radio("What would you like to do?", ("Compare One Place", "Compare Two Places"))
+# Function to Get Nearby Places using Overpass API 
+def get_nearby_places(lat, lon, key, value, radius=1500):
+    query = f"""
+    [out:json];
+    node[{key}={value}](around:{radius},{lat},{lon});
+    out;
+    """
+    url = "http://overpass-api.de/api/interpreter"
+    response = requests.get(url, params={'data': query})
+    data = response.json()
+    places = []
+    for element in data.get('elements', []):
+        name = element.get('tags', {}).get('name', 'Unnamed')
+        places.append(name)
+    return places[:5]  # Limit to 5 results for display
 
-# ---- Input Fields ----
-place1 = st.text_input("Enter first place (e.g. South Boston, MA)")
+# Streamlit UI 
+st.set_page_config(page_title="Compare Places", layout="centered")
+st.title("Compare Two Places")
+st.markdown("Enter two locations to compare nearby parks and gyms (free API version).")
 
-place2 = None
-if option == "Compare Two Places":
-    place2 = st.text_input("Enter second place (e.g. Back Bay, MA)")
+place1 = st.text_input("Enter First Location", "Back Bay, Boston, MA")
+place2 = st.text_input("Enter Second Location", "South Boston, MA")
 
-# ---- Mock Data Function ----
-def get_mock_data(place):
-    return {
-        "Average Housing Cost": "$3,200",
-        "Crime Rate": "Medium",
-        "Schools Nearby": ["Lincoln High", "Jefferson Elementary", "Newton Prep"],
-        "Commute Score": "75 (Train)",
-        "Green Spaces": "12 parks nearby",
-        "Walkability Score": "80",
-        "Diversity Index": "0.73",
-        "Gyms Nearby": ["Anytime Fitness", "Crunch", "Orangetheory", "Planet Fitness"],
-        "Shopping Options": ["Target", "Trader Joe's", "Whole Foods"],
-        "PET Score": "76"
-    }
+if st.button("Compare"):
+    lat1, lon1 = geocode_location(place1)
+    lat2, lon2 = geocode_location(place2)
 
-# ---- Display Results ----
-if st.button("Compare Now"):
-    if place1 and (option == "Compare One Place" or (option == "Compare Two Places" and place2)):
-        data1 = get_mock_data(place1)
-        data2 = get_mock_data(place2) if place2 else None
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"### {place1}")
-            for k, v in data1.items():
-                st.write(f"**{k}:**", v)
-
-        if data2:
-            with col2:
-                st.markdown(f"### {place2}")
-                for k, v in data2.items():
-                    st.write(f"**{k}:**", v)
+    if not lat1 or not lat2:
+        st.error("Couldn't locate one or both places. Try more specific names.")
     else:
-        st.warning("Please enter both places to compare.")
+        col1, col2 = st.columns(2)
 
+        with col1:
+            st.subheader(f"📌 {place1}")
+            st.write(f"Latitude: {lat1:.4f}, Longitude: {lon1:.4f}")
+            st.write("🏞️ Nearby Parks:")
+            st.write(get_nearby_places(lat1, lon1, 'leisure', 'park'))
+            st.write("🏋️ Gyms:")
+            st.write(get_nearby_places(lat1, lon1, 'amenity', 'gym'))
+
+        with col2:
+            st.subheader(f"📌 {place2}")
+            st.write(f"Latitude: {lat2:.4f}, Longitude: {lon2:.4f}")
+            st.write("🏞️ Nearby Parks:")
+            st.write(get_nearby_places(lat2, lon2, 'leisure', 'park'))
+            st.write("🏋️ Gyms:")
+            st.write(get_nearby_places(lat2, lon2, 'amenity', 'gym'))
