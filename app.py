@@ -3,17 +3,10 @@ import streamlit as st
 import requests
 
 # Geocoding Function using Nominatim 
-import requests
-
 def geocode_location(place_name):
     url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        'q': place_name,
-        'format': 'json'
-    }
-    headers = {
-        'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'
-    }
+    params = {'q': place_name, 'format': 'json'}
+    headers = {'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'}
     try:
         response = requests.get(url, params=params, headers=headers, timeout=10)
         response.raise_for_status()
@@ -23,7 +16,6 @@ def geocode_location(place_name):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching coordinates for {place_name}: {e}")
     return None, None
-
 
 # Function to Get Nearby Places using Overpass API 
 def get_nearby_places(lat, lon, key, value, radius=1500):
@@ -52,20 +44,19 @@ place2 = st.text_input("Enter Second Location", "South Boston, MA")
 if st.button("Compare"):
     lat1, lon1 = geocode_location(place1)
     lat2, lon2 = geocode_location(place2)
-    #map showing locations
-if lat1 and lon1:
-    locations = [{'lat': lat1, 'lon': lon1, 'place': place1}]
-    if lat2 and lon2:
-        locations.append({'lat': lat2, 'lon': lon2, 'place': place2})
 
-    df_map = pd.DataFrame(locations)
-    st.subheader("📍 Location Map")
-    st.map(df_map)
-
-
-    if not lat1 or not lat2:
+    if not lat1 or not lon1 or not lat2 or not lon2:
         st.error("Couldn't locate one or both places. Try more specific names.")
     else:
+        # Display map
+        locations = [
+            {'lat': lat1, 'lon': lon1, 'place': place1},
+            {'lat': lat2, 'lon': lon2, 'place': place2}
+        ]
+        df_map = pd.DataFrame(locations)
+        st.subheader("📍 Location Map")
+        st.map(df_map)
+
         col1, col2 = st.columns(2)
 
         with col1:
