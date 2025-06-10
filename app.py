@@ -107,7 +107,7 @@ def get_all_metrics(place, lat, lon):
 
 # 🧭 Streamlit UI Setup
 st.set_page_config(page_title="Neighborhood Insights", layout="centered")
-st.title("🏡 Neighborhood Insights & Comparison Tool")
+st.title("Where to live next?")
 
 mode = st.radio("Mode:", ("Compare Two Places", "Single Place"))
 place1 = st.text_input("Place 1 (City, State)", "Cambridge, MA")
