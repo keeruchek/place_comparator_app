@@ -7,7 +7,7 @@ def geocode_location(place_name):
     url = "https://api.opencagedata.com/geocode/v1/json"
     params = {
         'q': place_name,
-        'key': 'YOUR_OPENCAGE_API_KEY',
+        'key': '8e8875148f2f42e791dd420015550342',
         'limit': 1,
     }
     try:
