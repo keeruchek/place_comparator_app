@@ -17,14 +17,22 @@ def geocode_location(place_name):
     return None, None
 
 # 🔍 Nearby places via Overpass API
-def get_nearby_places(lat, lon, filter_query, label, radius=1500):
-    query = f"""
-      [out:json];
-      node[{filter_query}](around:{radius},{lat},{lon});
-      way[{filter_query}](around:{radius},{lat},{lon});
-      relation[{filter_query}](around:{radius},{lat},{lon});
-      out center;
-    """
+def get_all_metrics(place, lat, lon):
+    parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
+    gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
+    sch = get_nearby_places(lat, lon, '(amenity=school)|(amenity=college)', 'schools/colleges')
+    shop = get_nearby_places(lat, lon, '(shop=supermarket)|(shop=mall)|(shop=convenience)', 'shopping/grocery')
+    hos = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
+    parking_ct = parking_score(lat, lon)
+    # ... rest remains unchanged ...
+    return {
+      # ... previous metrics ...
+      "Nearby Schools/Colleges": sch,
+      "Nearby Shopping/Grocery": shop,
+      "Nearby Hospitals": hos,
+      # ... rest unchanged ...
+    }
+
     try:
         data = requests.get("http://overpass-api.de/api/interpreter", params={'data': query}, timeout=15).json()
         places = []
