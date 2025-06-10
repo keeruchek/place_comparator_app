@@ -1,95 +1,149 @@
-import pandas as pd
+ import pandas as pd
 import streamlit as st
 import requests
+import random
 
-# Geocoding function using OpenCage API
+# 🗺️ Geocoding using OpenCage Geocoder
 def geocode_location(place_name):
     url = "https://api.opencagedata.com/geocode/v1/json"
-    params = {
-        'q': place_name,
-        'key': '8e8875148f2f42e791dd420015550342',  # Replace with your own key
-        'limit': 1,
-    }
+    params = {'q': place_name, 'key': '8e8875148f2f42e791dd420015550342', 'limit': 1}
     try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        if data['results']:
-            return data['results'][0]['geometry']['lat'], data['results'][0]['geometry']['lng']
-    except Exception as e:
-        print(f"Geocoding error: {e}")
+        resp = requests.get(url, params=params, timeout=10).json()
+        if resp.get('results'):
+            geo = resp['results'][0]['geometry']
+            return geo['lat'], geo['lng']
+    except:
+        pass
     return None, None
 
-# Function to get nearby places using Overpass API
-def get_nearby_places(lat, lon, filter_query, label, radius=1500, max_results=5):
+# 🔍 Nearby places via Overpass API
+def get_nearby_places(lat, lon, filter_query, label, radius=1500):
     query = f"""
-    [out:json];
-    node[{filter_query}](around:{radius},{lat},{lon});
-    out;
+      [out:json];
+      node[{filter_query}](around:{radius},{lat},{lon});
+      way[{filter_query}](around:{radius},{lat},{lon});
+      relation[{filter_query}](around:{radius},{lat},{lon});
+      out center;
     """
-    url = "http://overpass-api.de/api/interpreter"
     try:
-        response = requests.get(url, params={'data': query}, timeout=15)
-        response.raise_for_status()
-        data = response.json()
+        data = requests.get("http://overpass-api.de/api/interpreter", params={'data': query}, timeout=15).json()
         places = []
-        for element in data.get('elements', []):
-            name = element.get('tags', {}).get('name', 'Unnamed')
-            lat = element.get('lat')
-            lon = element.get('lon')
-            places.append(f"{name} ({lat:.4f}, {lon:.4f})")
-        return places[:max_results] if places else [f"No nearby {label} found."]
+        for el in data.get('elements', []):
+            tags = el.get('tags', {})
+            name = tags.get('name', 'Unnamed')
+            lat0 = el.get('lat') or el.get('center', {}).get('lat')
+            lon0 = el.get('lon') or el.get('center', {}).get('lon')
+            places.append(f"{name} ({lat0:.4f}, {lon0:.4f})")
+        return places[:5] if places else [f"No {label} found"]
     except Exception as e:
-        return [f"Error retrieving {label}: {e}"]
+        return [f"Error {label}: {e}"]
 
-# Streamlit UI
-st.set_page_config(page_title="Compare Places", layout="centered")
-st.title("Compare Two Places")
-st.markdown("Enter two locations to compare nearby parks, gyms, schools, and shops (free API version).")
+# Dummy helpers
+def avg_housing_cost(place):
+    # Simulated values; integrate real data source like RentCast
+    return {'studio': '$1,200', '1 bed': '$1,800', '2 bed': '$2,400'}
 
-place1 = st.text_input("Enter First Location", "Back Bay, Boston, MA")
-place2 = st.text_input("Enter Second Location", "South Boston, MA")
+def crime_rate(place):
+    return random.choice(['Low', 'Medium', 'High'])
 
-if st.button("Compare"):
+def commute_info(place):
+    return random.randint(50, 100), random.choice(['Bus', 'Train', 'Tram', 'Bus & Train'])
+
+def walkability(place):
+    return random.randint(40, 95)
+
+def diversity_index(place):
+    return round(random.uniform(0.3, 0.9), 2)
+
+def pet_score(green_count, walk_score):
+    return round((green_count * 10 + walk_score) / 2)
+
+def parking_score(lat, lon):
+    # Count nearby parking amenities
+    parks = get_nearby_places(lat, lon, 'amenity=parking', 'parking')
+    return len(parks)
+
+def get_all_metrics(place, lat, lon):
+    parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
+    gyms = get_nearby_places(lat, lon, 'leisure=fitness_centre', 'gyms')
+    schools = get_nearby_places(lat, lon, 'amenity=school', 'schools')
+    shopping = get_nearby_places(lat, lon, 'shop', 'shops')
+    hospitals = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
+    parking_ct = parking_score(lat, lon)
+    
+    housing = avg_housing_cost(place)
+    crime = crime_rate(place)
+    commute_sc, commute_type = commute_info(place)
+    walk_sc = walkability(place)
+    div_ix = diversity_index(place)
+    pet_sc = pet_score(len(parks), walk_sc)
+    
+    return {
+        "Housing (Studio)": housing['studio'],
+        "Housing (1 bed)": housing['1 bed'],
+        "Housing (2 bed)": housing['2 bed'],
+        "Crime Rate": crime,
+        "Schools Nearby": schools,
+        "Commute Score": commute_sc,
+        "Transit Type": commute_type,
+        "Green Space (parks count)": len(parks),
+        "Walkability Score": walk_sc,
+        "Gyms Nearby": gyms,
+        "Shopping Nearby": shopping,
+        "Hospitals Nearby": hospitals,
+        "Parking Score (count)": parking_ct,
+        "Diversity Index": div_ix,
+        "PET Score": pet_sc
+    }
+
+# 🧭 Streamlit UI Setup
+st.set_page_config(page_title="Neighborhood Insights", layout="centered")
+st.title("🏡 Neighborhood Insights & Comparison Tool")
+
+mode = st.radio("Mode:", ("Compare Two Places", "Single Place"))
+place1 = st.text_input("Place 1 (City, State)", "Cambridge, MA")
+place2 = st.text_input("Place 2 (City, State)", "Somerville, MA") if mode == "Compare Two Places" else None
+
+if st.button("Show Insights"):
     lat1, lon1 = geocode_location(place1)
-    lat2, lon2 = geocode_location(place2)
+    lat2, lon2 = (None, None)
+    if mode == "Compare Two Places":
+        lat2, lon2 = geocode_location(place2)
 
-    if lat1 is None or lon1 is None:
-        st.error(f"Couldn't locate **{place1}**. Try a more specific name.")
-    elif lat2 is None or lon2 is None:
-        st.error(f"Couldn't locate **{place2}**. Try a more specific name.")
-    else:
-        # Show map
-        locations = [
-            {'lat': lat1, 'lon': lon1, 'place': place1},
-            {'lat': lat2, 'lon': lon2, 'place': place2}
-        ]
-        df_map = pd.DataFrame(locations)
-        st.subheader("📍 Location Map")
-        st.map(df_map)
+    if lat1 is None:
+        st.error(f"Couldn't locate {place1}")
+        st.stop()
+    if mode == "Compare Two Places" and lat2 is None:
+        st.error(f"Couldn't locate {place2}")
+        st.stop()
 
-        # Side-by-side comparison
+    # Show map
+    locs = [{'lat': lat1,'lon':lon1,'place':place1}]
+    if mode == "Compare Two Places":
+        locs.append({'lat':lat2,'lon':lon2,'place':place2})
+    st.map(pd.DataFrame(locs))
+
+    data1 = get_all_metrics(place1, lat1, lon1)
+    data2 = get_all_metrics(place2, lat2, lon2) if mode=="Compare Two Places" else None
+
+    if mode=="Compare Two Places":
         col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader(f"📌 {place1}")
-            st.write(f"Latitude: {lat1:.4f}, Longitude: {lon1:.4f}")
-            st.write("🏞️ Nearby Parks:")
-            st.write(get_nearby_places(lat1, lon1, 'leisure=park', 'parks'))
-            st.write("🏋️ Nearby Gyms:")
-            st.write(get_nearby_places(lat1, lon1, 'leisure=fitness_centre', 'gyms'))
-            st.write("🏫 Nearby Schools:")
-            st.write(get_nearby_places(lat1, lon1, 'amenity=school', 'schools'))
-            st.write("🛍️ Nearby Shops:")
-            st.write(get_nearby_places(lat1, lon1, 'shop', 'shops'))
-
-        with col2:
-            st.subheader(f"📌 {place2}")
-            st.write(f"Latitude: {lat2:.4f}, Longitude: {lon2:.4f}")
-            st.write("🏞️ Nearby Parks:")
-            st.write(get_nearby_places(lat2, lon2, 'leisure=park', 'parks'))
-            st.write("🏋️ Nearby Gyms:")
-            st.write(get_nearby_places(lat2, lon2, 'leisure=fitness_centre', 'gyms'))
-            st.write("🏫 Nearby Schools:")
-            st.write(get_nearby_places(lat2, lon2, 'amenity=school', 'schools'))
-            st.write("🛍️ Nearby Shops:")
-            st.write(get_nearby_places(lat2, lon2, 'shop', 'shops'))
+        for col, place, data in [(col1, place1, data1), (col2, place2, data2)]:
+            with col:
+                st.subheader(place)
+                for k,v in data.items():
+                    if isinstance(v, list):
+                        st.markdown(f"**{k}:**")
+                        for item in v:
+                            st.markdown(f"- {item}")
+                    else:
+                        st.markdown(f"**{k}:** {v}")
+    else:
+        st.subheader(place1)
+        for k,v in data1.items():
+            if isinstance(v, list):
+                st.markdown(f"**{k}:**")
+                for item in v:
+                    st.markdown(f"- {item}")
+            else:
+                st.markdown(f"**{k}:** {v}")
