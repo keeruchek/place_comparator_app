@@ -47,7 +47,7 @@ def get_nearby_places(lat, lon, key, value, radius=1500):
 # Streamlit UI
 st.set_page_config(page_title="Compare Places", layout="centered")
 st.title("Compare Two Places")
-st.markdown("Enter two locations to compare nearby parks, gyms, schools, and shopping areas.")
+st.markdown("Enter two locations to compare nearby parks, gyms, schools, and shops (free API version).")
 
 place1 = st.text_input("Enter First Location", "Back Bay, Boston, MA")
 place2 = st.text_input("Enter Second Location", "South Boston, MA")
@@ -73,18 +73,26 @@ if st.button("Compare"):
         # Side-by-side comparison
         col1, col2 = st.columns(2)
 
-        for i, (lat, lon, place, col) in enumerate([
-            (lat1, lon1, place1, col1),
-            (lat2, lon2, place2, col2)
-        ]):
-            with col:
-                st.subheader(f"📌 {place}")
-                st.write(f"Latitude: {lat:.4f}, Longitude: {lon:.4f}")
-                st.write("🏞️ Nearby Parks:")
-                st.write(get_nearby_places(lat, lon, 'leisure', 'park'))
-                st.write("🏋️ Nearby Gyms:")
-                st.write(get_nearby_places(lat, lon, 'amenity', 'gym'))
-                st.write("🏫 Nearby Schools:")
-                st.write(get_nearby_places(lat, lon, 'amenity', 'school'))
-                st.write("🛍️ Nearby Shopping:")
-                st.write(get_nearby_places(lat, lon, 'shop', 'mall'))  # could also try 'supermarket'
+        with col1:
+            st.subheader(f"📌 {place1}")
+            st.write(f"Latitude: {lat1:.4f}, Longitude: {lon1:.4f}")
+            st.write("🏞️ Nearby Parks:")
+            st.write(get_nearby_places(lat1, lon1, 'leisure=park', 'parks'))
+            st.write("🏋️ Nearby Gyms:")
+            st.write(get_nearby_places(lat1, lon1, 'leisure=fitness_centre', 'gyms'))
+            st.write("🏫 Nearby Schools:")
+            st.write(get_nearby_places(lat1, lon1, 'amenity=school', 'schools'))
+            st.write("🛍️ Nearby Shops:")
+            st.write(get_nearby_places(lat1, lon1, 'shop', 'shops'))
+
+        with col2:
+            st.subheader(f"📌 {place2}")
+            st.write(f"Latitude: {lat2:.4f}, Longitude: {lon2:.4f}")
+            st.write("🏞️ Nearby Parks:")
+            st.write(get_nearby_places(lat2, lon2, 'leisure=park', 'parks'))
+            st.write("🏋️ Nearby Gyms:")
+            st.write(get_nearby_places(lat2, lon2, 'leisure=fitness_centre', 'gyms'))
+            st.write("🏫 Nearby Schools:")
+            st.write(get_nearby_places(lat2, lon2, 'amenity=school', 'schools'))
+            st.write("🛍️ Nearby Shops:")
+            st.write(get_nearby_places(lat2, lon2, 'shop', 'shops'))
