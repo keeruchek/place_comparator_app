@@ -53,8 +53,11 @@ def avg_housing_cost(place):
 def crime_rate(place):
     return random.choice(['Low', 'Medium', 'High'])
 
-def commute_info(place):
-    return random.randint(50, 100), random.choice(['Bus', 'Train', 'Tram', 'Bus & Train'])
+def commute_score(place):
+    score = random.randint(1, 10)
+    mode = random.choice(["car", "train", "bus", "bike", "walk"])
+    return score, mode
+
 
 def walkability(place):
     return random.randint(40, 95)
