@@ -5,22 +5,20 @@ import requests
 # Geocoding Function using Nominatim 
 def geocode_location(place_name):
     url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        'q': place_name,
-        'format': 'json'
-    }
-    headers = {
-        'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'
-    }
+    params = {'q': place_name, 'format': 'json'}
+    headers = {'User-Agent': 'PlaceComparatorApp/1.0 (your_email@example.com)'}
     try:
         response = requests.get(url, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
+        print(f"Request URL: {response.url}")
+        print(f"Status Code: {response.status_code}")
         data = response.json()
+        print(f"Response Data: {data}")
         if data:
             return float(data[0]['lat']), float(data[0]['lon'])
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching coordinates for {place_name}: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
     return None, None
+
 
 # Function to Get Nearby Places using Overpass API 
 def get_nearby_places(lat, lon, key, value, radius=1500):
