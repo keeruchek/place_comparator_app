@@ -59,8 +59,8 @@ def commute_score(place):
     return score, mode
 
 
-def walkability(place):
-    return random.randint(40, 95)
+def walkability_score(lat, lon):
+    return random.randint(1, 100)
 
 def diversity_index(place):
     return round(random.uniform(0.3, 0.9), 2)
