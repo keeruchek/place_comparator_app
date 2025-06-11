@@ -2,6 +2,8 @@ import pandas as pd
 import streamlit as st
 import requests
 import random
+import os
+import openai
 
 # 🗺️ Geocoding using OpenCage Geocoder
 def geocode_location(place_name):
@@ -16,7 +18,7 @@ def geocode_location(place_name):
         pass
     return None, None
 
-# Updated Nearby places via Overpass API (only this function changed)
+# Nearby places via Overpass API
 def get_nearby_places(lat, lon, query, label, radius=2000):
     url = "https://overpass-api.de/api/interpreter"
     query = f"""
@@ -57,6 +59,25 @@ def commute_score(place):
     mode = random.choice(["car", "train", "bus", "bike", "walk"])
     return score, mode
 
+def get_school_data(lat, lon):
+    url = f"https://api.schooldigger.com/v1.2/schools?st=MA&lat={lat}&lon={lon}&distance=10&appID=YOUR_APP_ID&appKey=0568db1c7540e395bb773539fc1d7550"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        schools = []
+        for school in data.get('schoolList', []):
+            schools.append({
+                'name': school.get('schoolName'),
+                'rating': school.get('rankHistory', [{}])[0].get('rank'),
+                'gradeRange': school.get('lowGrade') + "–" + school.get('highGrade'),
+                'type': school.get('schoolType'),
+                'address': school.get('address')
+            })
+        return schools
+    else:
+        return [f"API error: {response.status_code}"]
+
 def walkability_score(lat, lon):
     return random.randint(1, 100)
 
@@ -74,11 +95,7 @@ def parking_score(lat, lon):
 def get_all_metrics(place, lat, lon):
     housing = avg_housing_cost(place)
     crime = crime_rate(place)
-    schools = get_nearby_places(lat, lon, 'amenity=school', 'schools') + get_nearby_places(lat, lon, 'amenity=college', 'colleges')
-
-    # Append random rating 1-10 to each school name to simulate ratings
-    schools_with_ratings = [f"{school} (Rating: {random.randint(1,10)}/10)" for school in schools]
-
+    schools = get_school_data(lat, lon)
     commute_sc, commute_type = commute_score(place)
     parks = get_nearby_places(lat, lon, 'leisure=park', 'parks')
     walk_sc = walkability_score(lat, lon)
@@ -87,13 +104,13 @@ def get_all_metrics(place, lat, lon):
     hospitals = get_nearby_places(lat, lon, 'amenity=hospital', 'hospitals')
     parking_ct = parking_score(lat, lon)
     div_ix = diversity_index(place)
-    pet_sc = pet_score(walk_sc, len(parks))
+    pet_sc = pet_score(len(parks), walk_sc)
 
     return {
         "Average Rent (2 bed)": housing['avg_rent_2bed'],
         "Average Sale Price (2 bed)": housing['avg_price_2bed'],
         "Crime Rate": crime,
-        "Schools Nearby": schools_with_ratings,
+        "Schools Nearby": [f"{s['name']} (Rating: {s['rating']}, Grades: {s['gradeRange']}, Type: {s['type']})" for s in schools],
         "Commute Score": commute_sc,
         "Transit Type": commute_type,
         "Green Space (parks count)": len(parks),
@@ -105,6 +122,27 @@ def get_all_metrics(place, lat, lon):
         "Diversity Index": div_ix,
         "PET Score": pet_sc
     }
+
+# Set OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def ask_ai(question, context):
+    prompt = f"""You are a helpful assistant. Based on the following neighborhood data, answer the user’s question concisely:
+
+{context}
+
+Question: {question}
+Answer:"""
+
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        temperature=0.7,
+        max_tokens=200,
+        n=1,
+        stop=None,
+    )
+    return response.choices[0].text.strip()
 
 # 🧭 Streamlit UI Setup
 st.set_page_config(page_title="Neighborhood Insights", layout="centered")
@@ -157,3 +195,23 @@ if st.button("Show Insights"):
                     st.markdown(f"- {item}")
             else:
                 st.markdown(f"**{k}:** {v}")
+
+    # --- AI Search Bar ---
+    st.markdown("---")
+    st.header("Ask the Neighborhood Insights Bot")
+    user_question = st.text_input("Ask a question about these neighborhoods:")
+
+    if user_question:
+        # Prepare context string from data1 and data2
+        context = ""
+        for place, data in [(place1, data1), (place2, data2) if data2 else (None, None)]:
+            if place and data:
+                context += f"\nNeighborhood: {place}\n"
+                for k, v in data.items():
+                    if isinstance(v, list):
+                        context += f"{k}: {', '.join(v)}\n"
+                    else:
+                        context += f"{k}: {v}\n"
+
+        answer = ask_ai(user_question, context)
+        st.markdown(f"**Answer:** {answer}")
