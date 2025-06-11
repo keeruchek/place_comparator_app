@@ -27,14 +27,15 @@ def geocode_location(place_name):
     url = "https://api.opencagedata.com/geocode/v1/json"
     params = {'q': place_name, 'key': OPENCAGE_API_KEY, 'limit': 1}
     try:
-        resp = requests.get(url, params=params, timeout=10).json()
-        if resp.get('results'):
-            geo = resp['results'][0]['geometry']
+        resp = requests.get(url, params=params, timeout=10)
+        resp_json = resp.json()
+        st.write("Geocode API response:", resp_json)  # DEBUG: Show response
+        if resp_json.get('results'):
+            geo = resp_json['results'][0]['geometry']
             return geo['lat'], geo['lng']
     except Exception as e:
         st.error(f"Geocoding error: {e}")
     return None, None
-
 # --- Overpass API for nearby places ---
 def get_nearby_places(lat, lon, query, label, radius=2000):
     url = "https://overpass-api.de/api/interpreter"
