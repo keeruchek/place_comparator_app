@@ -1,118 +1,48 @@
-import streamlit as st
-import requests
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import openai
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# API keys and base URLs
-CRIME_DATA_API = os.getenv("CRIME_DATA_API")
-REAL_ESTATE_API = os.getenv("REAL_ESTATE_API")
-HOSPITAL_API = os.getenv("HOSPITAL_API")
-GYM_API = os.getenv("GYM_API")
-GROCERY_API = os.getenv("GROCERY_API")
-COMMUTE_API = os.getenv("COMMUTE_API")
-SCHOOL_DATA_API_KEY = os.getenv("SCHOOL_DATA_API_KEY")
-SCHOOL_DATA_BASE_URL = os.getenv("SCHOOL_DATA_BASE_URL")
+app = FastAPI()
 
-# Functions for each API
-def get_crime_data(city):
-    try:
-        response = requests.get(f"{CRIME_DATA_API}?city={city}")
-        return response.json()
-    except:
-        return {}
+# Allow frontend to communicate
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace with actual domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def get_real_estate_data(city):
-    try:
-        response = requests.get(f"{REAL_ESTATE_API}?city={city}")
-        return response.json()
-    except:
-        return {}
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def get_hospitals(city):
+@app.post("/ai/search")
+async def ai_search(question: str = Form(...)):
     try:
-        response = requests.get(f"{HOSPITAL_API}?city={city}")
-        return response.json()
-    except:
-        return {}
-
-def get_gyms(city):
-    try:
-        response = requests.get(f"{GYM_API}?city={city}")
-        return response.json()
-    except:
-        return {}
-
-def get_grocery_stores(city):
-    try:
-        response = requests.get(f"{GROCERY_API}?city={city}")
-        return response.json()
-    except:
-        return {}
-
-def get_commute_score(city):
-    try:
-        response = requests.get(f"{COMMUTE_API}?city={city}")
-        return response.json()
-    except:
-        return {}
-
-def get_school_data(zip_code):
-    try:
-        response = requests.get(
-            f"{SCHOOL_DATA_BASE_URL}?zip={zip_code}&key={SCHOOL_DATA_API_KEY}"
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=200
         )
-        return response.json()
-    except:
-        return []
+        answer = response['choices'][0]['message']['content']
+        return JSONResponse(content={"answer": answer})
+    except Exception as e:
+        return JSONResponse(content={"answer": f"Error: {str(e)}"}, status_code=500)
 
-def get_all_metrics(city, zip_code):
-    return {
-        "crime": get_crime_data(city),
-        "real_estate": get_real_estate_data(city),
-        "hospitals": get_hospitals(city),
-        "gyms": get_gyms(city),
-        "groceries": get_grocery_stores(city),
-        "commute": get_commute_score(city),
-        "schools": get_school_data(zip_code),
-    }
+# Your existing source code goes below this line
+# --------------------------------------------------
 
-# Streamlit UI
-st.title("City Metrics Dashboard")
-city = st.text_input("Enter a city")
-zip_code = st.text_input("Enter ZIP code")
+# Example placeholder: add your existing Streamlit or other routes here
+# If you had another app object, make sure to merge routes properly
 
-if st.button("Get Metrics"):
-    if city and zip_code:
-        metrics = get_all_metrics(city, zip_code)
-
-        st.header("Crime Data")
-        st.json(metrics["crime"])
-
-        st.header("Real Estate Data")
-        st.json(metrics["real_estate"])
-
-        st.header("Hospitals")
-        st.json(metrics["hospitals"])
-
-        st.header("Gyms")
-        st.json(metrics["gyms"])
-
-        st.header("Grocery Stores")
-        st.json(metrics["groceries"])
-
-        st.header("Commute Score")
-        st.json(metrics["commute"])
-
-        st.header("Schools")
-        if metrics["schools"]:
-            for school in metrics["schools"]:
-                st.markdown(
-                    f"**{school.get('name', 'N/A')}** - {school.get('level', 'N/A')}, Rating: {school.get('rating', 'N/A')}/10"
-                )
-        else:
-            st.write("No school data found.")
-    else:
-        st.warning("Please enter both city and ZIP code.")
+@app.get("/")
+async def root():
+    return {"message": "Main app is running."}
