@@ -1,23 +1,32 @@
 import streamlit as st
-import requests
+import openai
+import os
+from dotenv import load_dotenv
 
-st.title("Neighborhood Insights Bot with AI Search")
+load_dotenv()
 
-question = st.text_input("Ask the AI a question about neighborhoods:")
+openai.api_key = os.getenv("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")
 
-if st.button("Submit"):
-    if question.strip():
-        try:
-            response = requests.post(
-                "http://localhost:8000/ai/search",
-                data={"question": question}
-            )
-            if response.status_code == 200:
-                answer = response.json().get("answer", "No answer returned.")
-                st.markdown(f"**AI says:** {answer}")
-            else:
-                st.error(f"API error: {response.text}")
-        except Exception as e:
-            st.error(f"Request failed: {e}")
-    else:
-        st.warning("Please enter a question.")
+def ask_openai(prompt):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=300
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error: {e}"
+
+st.set_page_config(page_title="AI Search", layout="centered")
+
+st.title("AI Search Assistant")
+question = st.text_input("Ask your question:")
+
+if st.button("Submit") and question:
+    with st.spinner("Thinking..."):
+        answer = ask_openai(question)
+        st.markdown(f"**Answer:** {answer}")
