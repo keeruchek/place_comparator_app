@@ -1,32 +1,56 @@
 import streamlit as st
-import openai
+import requests
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-openai.api_key = os.getenv("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")
+# API Keys from .env
+OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
+SCHOOLDIGGER_API_KEY = os.getenv("SCHOOLDIGGER_API_KEY")
+ZILLOW_API_KEY = os.getenv("ZILLOW_API_KEY")
 
-def ask_openai(prompt):
+st.set_page_config(page_title="Real Estate Helper", layout="centered")
+
+st.title("🏠 Real Estate Search Helper")
+
+# Address input
+address = st.text_input("Enter an address:")
+
+if address:
+    st.subheader("📍 Location Details")
+
+    # Geocoding with OpenCage
+    geocode_url = f"https://api.opencagedata.com/geocode/v1/json?q={address}&key={OPENCAGE_API_KEY}"
+    geocode_response = requests.get(geocode_url)
+    geo_data = geocode_response.json()
+
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=300
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error: {e}"
+        lat = geo_data['results'][0]['geometry']['lat']
+        lng = geo_data['results'][0]['geometry']['lng']
+        st.write(f"**Latitude:** {lat}")
+        st.write(f"**Longitude:** {lng}")
+    except (IndexError, KeyError):
+        st.error("Could not get location data. Please check the address.")
 
-st.set_page_config(page_title="AI Search", layout="centered")
+    # School info from SchoolDigger
+    st.subheader("🎓 Nearby Schools")
+    school_url = (
+        f"https://api.schooldigger.com/v1.2/schools?st=CA&lat={lat}&lon={lng}&distance=5"
+        f"&appID=DUMMY_ID&appKey={SCHOOLDIGGER_API_KEY}"
+    )
+    school_response = requests.get(school_url)
+    school_data = school_response.json()
 
-st.title("AI Search Assistant")
-question = st.text_input("Ask your question:")
+    if school_data.get("schoolList"):
+        for school in school_data["schoolList"][:3]:  # Show top 3
+            st.markdown(f"**{school['schoolName']}**")
+            st.write(f"Rating: {school.get('rankStars', 'N/A')}")
+            st.write(f"Address: {school['address']}")
+            st.markdown("---")
+    else:
+        st.write("No nearby schools found.")
 
-if st.button("Submit") and question:
-    with st.spinner("Thinking..."):
-        answer = ask_openai(question)
-        st.markdown(f"**Answer:** {answer}")
+    # Placeholder Zillow integration
+    st.subheader("💰 Estimated Property Value")
+    st.write("Zillow API requires partnership access. Placeholder for property value.")
