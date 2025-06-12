@@ -1,7 +1,4 @@
-streamlit
-pandas
-requests
+flask
+python-dotenv
 openai
-python-dotenv
-Flask
-python-dotenv
+requests
